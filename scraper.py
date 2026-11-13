@@ -3,13 +3,30 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 
+def fetch(url, tries=3):
+    for attempt in range(1, tries + 1):
+        try:
+            r = requests.get(url, timeout=10)
+            r.raise_for_status()
+            return r
+        except requests.RequestException as e:
+            print("Attempt", attempt, "failed:", e)
+            time.sleep(2 * attempt)
+    print("Giving up on", url)
+    return None
+
 base = "https://books.toscrape.com/catalogue/page-{}.html"
 titles = []
 prices = []
+failed = []
 
 for page in range(1, 51):
     url = base.format(page)
-    r = requests.get(url, timeout=10)
+    r = fetch(url)
+    if r is None:
+        failed.append(url)
+        continue
+
     soup = BeautifulSoup(r.content, "html.parser")
     books = soup.select("article.product_pod")
 
@@ -24,6 +41,7 @@ for page in range(1, 51):
     time.sleep(0.5)
 
 print("Books found:", len(prices))
+print("Failed pages:", len(failed))
 print("Total:", round(sum(prices), 2))
 print("Average:", round(sum(prices) / len(prices), 2))
 print("Cheapest:", min(prices))
