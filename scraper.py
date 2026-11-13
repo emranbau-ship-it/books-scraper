@@ -1,22 +1,34 @@
+import time
 import requests
+import pandas as pd
 from bs4 import BeautifulSoup
 
-url = "https://books.toscrape.com/"
-r = requests.get(url, timeout=10)
-soup = BeautifulSoup(r.content, "html.parser")
-
-books = soup.select("article.product_pod")
-print("Books found:", len(books))
-
+base = "https://books.toscrape.com/catalogue/page-{}.html"
+titles = []
 prices = []
 
-for book in books:
-    title = book.h3.a["title"]
-    price_text = book.select_one(".price_color").text
-    price = float(price_text.replace("£", ""))
-    prices.append(price)
-    print(title, "|", price)
+for page in range(1, 51):
+    url = base.format(page)
+    r = requests.get(url, timeout=10)
+    soup = BeautifulSoup(r.content, "html.parser")
+    books = soup.select("article.product_pod")
 
+    for book in books:
+        title = book.h3.a["title"]
+        price_text = book.select_one(".price_color").text
+        price = float(price_text.replace("£", ""))
+        titles.append(title)
+        prices.append(price)
+
+    print("Page", page, "done:", len(books), "books")
+    time.sleep(0.5)
+
+print("Books found:", len(prices))
 print("Total:", round(sum(prices), 2))
 print("Average:", round(sum(prices) / len(prices), 2))
 print("Cheapest:", min(prices))
+
+df = pd.DataFrame({"title": titles, "price": prices})
+df.to_csv("books.csv", index=False, encoding="utf-8-sig")
+df.to_excel("books.xlsx", index=False)
+print("Saved books.csv and books.xlsx")
